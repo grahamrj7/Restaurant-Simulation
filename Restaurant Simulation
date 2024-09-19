@@ -1,0 +1,160 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
+
+class Restaurant {
+    private List<Dish> dishList = new ArrayList<>();
+    
+ // Method for chef to add a dish to the collection
+    public synchronized void addDish(Dish dish) {
+        dishList.add(dish);
+        notify(); // Notify waiter that a new dish is available
+    }
+    
+    // Method for waiter to get a dish from the collection
+    public synchronized Dish getDish() throws InterruptedException {
+        while (dishList.isEmpty()) {
+            wait(); // Wait for chef to prepare a dish
+        }
+        Dish dish = dishList.remove(0);
+        return dish;
+    }
+
+
+    // Method to check if there are remaining dishes in the collection
+    public synchronized boolean hasRemainingDishes() {
+        return !dishList.isEmpty();
+    }
+}
+
+class Chef extends Thread {
+    private Restaurant restaurant;
+
+    public Chef(Restaurant restaurant) {
+        this.restaurant = restaurant;
+    }
+
+    @Override
+    public void run() {
+        try {
+            while (restaurant.hasRemainingDishes()) {
+                Thread.sleep(3000); // Simulating dish preparation time
+                Dish dish = restaurant.getDish();
+                System.out.println("Chef prepared: " + dish.getName() + " for Table " + dish.getTableNumber());
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Waiter extends Thread {
+    private Restaurant restaurant;
+
+    public Waiter(Restaurant restaurant) {
+        this.restaurant = restaurant;
+    }
+
+    @Override
+    public void run() {
+        try {
+            while (restaurant.hasRemainingDishes()) {
+                Dish dish = restaurant.getDish();
+                System.out.println("Waiter serving: " + dish.getName() + " to Table " + dish.getTableNumber());
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Dish {
+    private String name;
+    private int tableNumber;
+
+    public Dish(String name, int tableNumber) {
+        this.name = name;
+        this.tableNumber = tableNumber;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getTableNumber() {
+        return tableNumber;
+    }
+ // Main class
+    public static void main(String[] args) {
+        Restaurant restaurant = new Restaurant(); // Create a new restaurant
+        Chef chef = new Chef(restaurant); // Create a chef
+        Waiter waiter = new Waiter(restaurant); // Create a waiter
+
+        chef.start(); // Start the chef thread
+        waiter.start(); // Start the waiter thread
+    }
+}
+
+
+public class RestaurantGUI extends JFrame {
+    private Restaurant restaurant;
+    private JTextField dishNameField;
+    private JTextField tableNumberField;
+    private JTextArea outputArea;
+
+    public RestaurantGUI() {
+        restaurant = new Restaurant();// Create a new restaurant instance
+        Chef chef = new Chef(restaurant);// Create a chef instance
+        Waiter waiter = new Waiter(restaurant);// Create a waiter instance
+        chef.start();// Start the chef thread
+        waiter.start();// Start the waiter thread
+
+        setTitle("Restaurant Ordering System");// Set the title of the window
+        setSize(400, 300);// Set the size of the window
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// Set the default close operation
+
+
+        JPanel mainPanel = new JPanel();// Create a new panel
+        mainPanel.setLayout(new GridLayout(4, 2, 5, 5));// Set the layout of the panel
+
+        JLabel dishNameLabel = new JLabel("Dish Name:");// Create a label for dish name
+        dishNameField = new JTextField();// Create a text field for dish name
+        JLabel tableNumberLabel = new JLabel("Table Number:");// Create a label for table number
+        tableNumberField = new JTextField();// Create a text field for table number
+        JButton orderButton = new JButton("Order"); // Create a button for ordering
+        outputArea = new JTextArea();// Create a text area for output
+        outputArea.setEditable(false);// Make the output area non-editable
+
+        orderButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String dishName = dishNameField.getText();// Get the text from dish name field
+                int tableNumber = Integer.parseInt(tableNumberField.getText()); // Get the text from table number field and convert to integer
+                Dish dish = new Dish(dishName, tableNumber);// Create a new dish object
+                restaurant.addDish(dish);// Add the dish to the restaurant
+                dishNameField.setText("");// Clear the dish name field
+                tableNumberField.setText("");// Clear the table number field
+                outputArea.append("Ordered: " + dishName + " for Table " + tableNumber + "\n");// Append order details to the output area
+            }
+        });
+     // Add components to the main panel
+        mainPanel.add(dishNameLabel);
+        mainPanel.add(dishNameField);
+        mainPanel.add(tableNumberLabel);
+        mainPanel.add(tableNumberField);
+        mainPanel.add(orderButton);
+     // Create a scroll pane for the output area
+        JScrollPane scrollPane = new JScrollPane(outputArea);// Add the scroll pane to the main panel
+        mainPanel.add(scrollPane);// Add the main panel to the frame
+        add(mainPanel);// Add the main panel to the frame
+        setVisible(true);// Set the frame visible
+    }
+    
+    // Main method
+    public static void main(String[] args) {
+        new RestaurantGUI();// Create a new instance of the restaurant GUI
+    }
+}
